@@ -62,6 +62,7 @@ public class Event {
         this.sharedUsers = sharedUsers;
     }
 
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("Event{");
