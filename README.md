@@ -1,2 +1,2 @@
-# SharedNotes
-Secure application for sharing notes between users
+# CoolEvents
+Secure application for managing and sharing events between users

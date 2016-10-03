@@ -3,6 +3,7 @@ package by.bsu.fpmi.entitty;
 import java.util.List;
 
 public class User {
+    private int id;
     private String firstName;
     private String lastName;
     private String login;
@@ -11,6 +12,14 @@ public class User {
     private List<Event> readingEvents;
 
     public User() {
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getFirstName() {
@@ -59,5 +68,16 @@ public class User {
 
     public void setReadingEvents(List<Event> readingEvents) {
         this.readingEvents = readingEvents;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("User{");
+        sb.append("id=").append(id);
+        sb.append(", firstName='").append(firstName).append('\'');
+        sb.append(", lastName='").append(lastName).append('\'');
+        sb.append(", login='").append(login).append('\'');
+        sb.append('}');
+        return sb.toString();
     }
 }
