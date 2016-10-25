@@ -47,6 +47,7 @@ public class EventController extends HttpServlet {
             case Constants.EVENT_URI:
                 switch (action) {
                     case "show":
+                        show(req, resp);
                         return;
                     case "edit":
                         edit(req, resp);
@@ -55,7 +56,6 @@ public class EventController extends HttpServlet {
                         delete(req, resp);
                         return;
                 }
-                show(req, resp);
                 return;
             default:
                 resp.sendError(404);
