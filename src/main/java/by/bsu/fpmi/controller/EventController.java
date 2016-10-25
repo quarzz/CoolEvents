@@ -1,6 +1,10 @@
 package by.bsu.fpmi.controller;
 
-import by.bsu.fpmi.Constants;
+import by.bsu.fpmi.dao.EventsDao;
+import by.bsu.fpmi.dao.UserDao;
+import by.bsu.fpmi.dao.UserDaoImpl;
+import by.bsu.fpmi.entitty.Access;
+import by.bsu.fpmi.util.Constants;
 import by.bsu.fpmi.dao.EventsDaoImpl;
 import by.bsu.fpmi.entitty.Event;
 
@@ -9,33 +13,50 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 
-@WebServlet(urlPatterns = {Constants.NEW_EVENT_URI, Constants.SHOW_EVENT_URI})
+@WebServlet(urlPatterns = {Constants.NEW_EVENT_URI, Constants.EVENT_URI})
 public class EventController extends HttpServlet {
 
-    private EventsDaoImpl dao;
+    private EventsDao eventsDao;
+    private UserDao userDao;
+    private SimpleDateFormat dateFormat;
 
     @Override
     public void init() throws ServletException {
-        dao = new EventsDaoImpl();
+        eventsDao = new EventsDaoImpl();
+        userDao = new UserDaoImpl();
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         super.init();
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String uri = req.getRequestURI();
+        String action = req.getParameter("action");
+
+        if (action == null) action = "show";
 
         switch (uri) {
             case Constants.NEW_EVENT_URI:
                 setup(req, resp);
-                break;
-            case Constants.SHOW_EVENT_URI:
+                return;
+            case Constants.EVENT_URI:
+                switch (action) {
+                    case "show":
+                        return;
+                    case "edit":
+                        edit(req, resp);
+                        return;
+                    case "delete":
+                        delete(req, resp);
+                        return;
+                }
                 show(req, resp);
-                break;
+                return;
             default:
                 resp.sendError(404);
         }
@@ -48,13 +69,21 @@ public class EventController extends HttpServlet {
         switch (uri) {
             case Constants.NEW_EVENT_URI:
                 create(req, resp);
-                break;
+                return;
+            case Constants.EVENT_URI:
+                update(req, resp);
+                return;
             default:
                 resp.sendError(404);
         }
     }
 
     private void setup(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+
+        Event event = new Event();
+
+        req.setAttribute("event", event);
+        req.setAttribute("action", "new");
         req.getRequestDispatcher("new.jsp").forward(req, resp);
     }
 
@@ -71,8 +100,14 @@ public class EventController extends HttpServlet {
             //HANDLE SOMEHOW IN FUTURE RELEASES
         }
 
-        if (dao.addEvent(event)) {
-            resp.sendRedirect("/event/");
+        event.setOwner(userDao.getUserById(AccessController.getCurrentUserID(req)));
+
+        HttpSession session = req.getSession();
+        String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
+
+
+        if (eventsDao.addEvent(event)) {
+            resp.sendRedirect(prevEventsListUrl);
         } else {
             resp.sendRedirect("/event/new");
         }
@@ -80,27 +115,82 @@ public class EventController extends HttpServlet {
 
     private void show(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         //here we will check access and parameters
-        String rawId = req.getParameter("id");
-        int id;
+        String rawEventId = req.getParameter("id");
+        int eventId;
+        int userId = AccessController.getCurrentUserID(req);
 
-        if (rawId == null) {
-
+        if (rawEventId == null) {
+            resp.sendError(404);
             return;
         }
 
         try {
-            id = Integer.parseInt(rawId);
+            eventId = Integer.parseInt(rawEventId);
         } catch (NumberFormatException e) {
             resp.sendError(404);
             return;
         }
 
-        Event event = new Event();
-        event.setTitle("Влад сварил борщ");
-        event.setDescription("Влад сварил самый вкусный борщ, который ты когда-либо пробовал в своей жизни.\nА чего добился ты??");
-        event.setDate(new Date());
+        int access = eventsDao.getAccess(userId, eventId);
+
+        if (access == Access.NONE) {
+            resp.sendError(403);
+            return;
+        }
+
+        Event event = eventsDao.getEventById(eventId);
 
         req.setAttribute("event", event);
+        req.setAttribute("access", access);
         req.getRequestDispatcher("show.jsp").forward(req, resp);
+    }
+
+    private void edit(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        int id = Integer.parseInt(req.getParameter("id"));
+
+        Event event = eventsDao.getEventById(id);
+
+        req.setAttribute("event", event);
+        req.setAttribute("action", "edit");
+
+        req.getRequestDispatcher("edit.jsp").forward(req, resp);
+    }
+
+    private void update(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        int userId = AccessController.getCurrentUserID(req);
+
+        Event event = new Event();
+
+        event.setTitle(req.getParameter("title"));
+        event.setDescription(req.getParameter("description"));
+        try {
+            event.setDate(dateFormat.parse(req.getParameter("date")));
+        } catch (ParseException e) {
+            event.setDate(null);
+        }
+        event.setOwner(userDao.getUserById(userId));
+
+        HttpSession session = req.getSession();
+        String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
+
+        if (eventsDao.addEvent(event)) {
+            resp.sendRedirect(prevEventsListUrl);
+        } else {
+            resp.sendRedirect(prevEventsListUrl);
+        }
+    }
+
+    private void delete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        int id = Integer.parseInt(req.getParameter("id"));
+
+        HttpSession session = req.getSession();
+        String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
+
+        // some clean code goes here xD
+        if (eventsDao.deleteEventById(id)) {
+            resp.sendRedirect(prevEventsListUrl);
+        } else {
+            resp.sendRedirect(prevEventsListUrl);
+        }
     }
 }

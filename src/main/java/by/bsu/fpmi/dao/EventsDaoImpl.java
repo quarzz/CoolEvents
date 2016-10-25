@@ -11,7 +11,12 @@ import java.util.List;
 
 public class EventsDaoImpl implements EventsDao {
 
-    public Event createEventFromResultSet(ResultSet rs) throws SQLException {
+    @Override
+    public boolean deleteEventById(int id) {
+        return false;
+    }
+
+    private Event createEventFromResultSet(ResultSet rs) throws SQLException {
         Event event = new Event();
         event.setId(rs.getInt("id"));
         event.setTitle(rs.getString("title"));
@@ -99,9 +104,9 @@ public class EventsDaoImpl implements EventsDao {
             try (PreparedStatement stat = conn.prepareStatement(
                     "SELECT \"Events\".* FROM \"Events\" INNER JOIN \"Access\" ON \"Events\".id=\"Access\".event_id " +
                             "WHERE \"Access\".access=? AND \"Access\".user_id=? ORDER BY \"Events\".date")) {
+                stat.setInt(1, Access.EDIT);
+                stat.setInt(2, ownerId);
                 try (ResultSet rs = stat.executeQuery()) {
-                    stat.setInt(1, Access.EDIT);
-                    stat.setInt(2, ownerId);
                     while (rs.next()) {
                         events.add(createEventFromResultSet(rs));
                     }

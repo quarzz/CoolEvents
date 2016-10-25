@@ -13,5 +13,7 @@
     <p>
         <fmt:formatDate value="${requestScope.event.date}" type="date"/>
     </p>
+    <a class="btn btn-warning" href="/event/?id=${requestScope.event.id}&action=edit">Edit</a>
+    <a class="btn btn-danger" href="/event/?id=${requestScope.event.id}&action=delete">delete</a>
 </body>
 </html>

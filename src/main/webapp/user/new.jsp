@@ -1,25 +1,32 @@
-<%@ page isELIgnored="false" %>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<html>
-<head>
-    <title>Sign up</title>
-</head>
-<body>
-    <form action="${pageContext.request.contextPath}/user/new" method="post">
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email"/>
-        <br>
-        <label for="first_name">First name:</label>
-        <input type="text" id="first_name" name="first_name"/>
-        <br>
-        <label for="last_name">Last name:</label>
-        <input type="text" id="last_name" name="last_name"/>
-        <br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password"/>
-        <br>
-        <input type="submit">
+<%@ include file="../common/header.jsp"%>
+
+<div class="col-md-6 col-md-offset-3">
+    <c:forEach items="${requestScope.alerts}" var="alert">
+        <div class="alert alert-danger">
+            <strong>Error!</strong>${alert}
+        </div>
+    </c:forEach>
+    <form class="form" action="${pageContext.request.contextPath}/user/new" method="post">
+        <p class="form-group">
+            <label class="control-label" for="email">Email:</label>
+            <input class="form-control" type="email" id="email" name="email"/>
+        </p>
+        <p class="form-group">
+            <label class="control-label" for="first_name">First name:</label>
+            <input class="form-control" type="text" id="first_name" name="first_name"/>
+        </p>
+        <p class="form-group">
+            <label class="control-label" for="last_name">Last name:</label>
+            <input class="form-control" type="text" id="last_name" name="last_name"/>
+        </p>
+        <p class="form-group">
+            <label class="control-label" for="password">Password:</label>
+            <input class="form-control" type="password" id="password" name="password"/>
+        </p>
+        <p class="form-group">
+            <button class="btn btn-success" type="submit">Sign up</button>
+        </p>
     </form>
-</body>
-</html>
+</div>
+
+<%@ include file="../common/footer.jsp"%>
