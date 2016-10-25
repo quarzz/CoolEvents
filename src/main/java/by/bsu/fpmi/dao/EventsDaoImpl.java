@@ -11,12 +11,7 @@ import java.util.List;
 
 public class EventsDaoImpl implements EventsDao {
 
-    @Override
-    public boolean deleteEventById(int id) {
-        return false;
-    }
-
-    private Event createEventFromResultSet(ResultSet rs) throws SQLException {
+    protected Event createEventFromResultSet(ResultSet rs) throws SQLException {
         Event event = new Event();
         event.setId(rs.getInt("id"));
         event.setTitle(rs.getString("title"));
@@ -38,12 +33,7 @@ public class EventsDaoImpl implements EventsDao {
 
                 try (ResultSet rs = stat.executeQuery()) {
                     while (rs.next()) {
-                        event = new Event();
-                        event.setId(rs.getInt(1));
-                        event.setTitle(rs.getString("title"));
-                        event.setDescription(rs.getString("description"));
-                        event.setDate(rs.getTimestamp("date"));
-
+                        event = createEventFromResultSet(rs);
                         User user = new User();
                         user.setId(rs.getInt(5));
                         user.setFirstName(rs.getString("firstName"));
@@ -61,6 +51,7 @@ public class EventsDaoImpl implements EventsDao {
 
     public boolean addEvent(Event event) {
         boolean res = false;
+        if (event.getOwner()==null) return false;
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat1 = conn.prepareStatement(
                     "INSERT INTO \"Events\" (title, description, date) VALUES (?,?,?) RETURNING id");
@@ -78,6 +69,7 @@ public class EventsDaoImpl implements EventsDao {
                         event.setId(rs.getInt("id"));
                     }
                 }
+                System.out.println("");
 
                 stat2.setInt(1, event.getId());
                 stat2.setInt(2, event.getOwner().getId());
@@ -85,6 +77,33 @@ public class EventsDaoImpl implements EventsDao {
                 int num = stat2.executeUpdate();
 
                 res = (num>0);
+                conn.commit();
+            } catch (SQLException e) {
+                System.err.println("Transaction is being rolled back");
+                conn.rollback();
+                e.printStackTrace();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
+
+    @Override
+    public boolean deleteEventById(int id) {
+        boolean res = false;
+        try (Connection conn = DbUtil.getConnection()) {
+            try (PreparedStatement stat1 = conn.prepareStatement("DELETE FROM \"Access\" WHERE event_id=?");
+                 PreparedStatement stat2 = conn.prepareStatement("DELETE FROM \"Events\" WHERE id=?")) {
+
+                conn.setAutoCommit(false);
+
+                stat1.setInt(1, id);
+                int num = stat1.executeUpdate();
+                stat2.setInt(1, id);
+                num += stat2.executeUpdate();
+                res = (num >= 2);
+
                 conn.commit();
             } catch (SQLException e) {
                 System.err.println("Transaction is being rolled back");
@@ -121,7 +140,34 @@ public class EventsDaoImpl implements EventsDao {
     @Override
     public List<Event> getSharedEvents(int userId) {
         List<Event> events = new ArrayList<>();
-        //TODO: correct query
+        try (Connection conn = DbUtil.getConnection()) {
+            try (PreparedStatement stat = conn.prepareStatement("WITH shared_events AS (" +
+                            "SELECT \"Events\".* FROM \"Events\" INNER JOIN \"Access\" ON \"Events\".id=\"Access\".event_id " +
+                            "WHERE \"Access\".access=1 AND \"Access\".user_id=?)" +
+                            "SELECT shared_events.*, \"Users\".* from shared_events " +
+                            "INNER JOIN \"Access\" ON shared_events.id=\"Access\".event_id " +
+                            "INNER JOIN \"Users\" ON \"Access\".user_id=\"Users\".id " +
+                            "WHERE \"Access\".access=2 ORDER BY shared_events.date")) {
+                stat.setInt(1, userId);
+
+                try (ResultSet rs = stat.executeQuery()) {
+                    Event event;
+                    while (rs.next()) {
+                        event = createEventFromResultSet(rs);
+                        User user = new User();
+                        user.setId(rs.getInt(5));
+                        user.setFirstName(rs.getString("firstName"));
+                        user.setLastName(rs.getString("lastName"));
+                        user.setLogin(rs.getString("login"));
+
+                        event.setOwner(user);
+                        events.add(event);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return events;
     }
 

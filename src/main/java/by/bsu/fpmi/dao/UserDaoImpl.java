@@ -9,7 +9,7 @@ import java.util.List;
 
 public class UserDaoImpl implements UserDao {
 
-    public User createUserFromResultSet(ResultSet rs) throws SQLException {
+    protected User createUserFromResultSet(ResultSet rs) throws SQLException {
         User user = new User();
         user.setId(rs.getInt("id"));
         user.setFirstName(rs.getString("firstName"));
@@ -23,6 +23,25 @@ public class UserDaoImpl implements UserDao {
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat = conn.prepareStatement("SELECT * FROM \"Users\" WHERE id=?")) {
                 stat.setInt(1, id);
+
+                try (ResultSet rs = stat.executeQuery()) {
+                    while (rs.next()) {
+                        user = createUserFromResultSet(rs);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return user;
+    }
+
+    @Override
+    public User getUserByLogin(String login) {
+        User user = null;
+        try (Connection conn = DbUtil.getConnection()) {
+            try (PreparedStatement stat = conn.prepareStatement("SELECT * FROM \"Users\" WHERE login=?")) {
+                stat.setString(1, login);
 
                 try (ResultSet rs = stat.executeQuery()) {
                     while (rs.next()) {

@@ -8,9 +8,9 @@ public interface EventsDao {
 
     public Event getEventById(int id);
 
-    public boolean deleteEventById(int id);
-
     public boolean addEvent(Event event);
+
+    public boolean deleteEventById(int id);
 
     public List<Event> getOwnersEvents(int ownerId);
 
