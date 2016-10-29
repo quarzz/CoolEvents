@@ -50,13 +50,13 @@ public class EventsDaoImpl implements EventsDao {
     }
 
     public boolean addEvent(Event event) {
-        boolean res = false;
-        if (event.getOwner()==null) return false;
+        if (event.getOwner()==null)
+            return false;
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat1 = conn.prepareStatement(
                     "INSERT INTO \"Events\" (title, description, date) VALUES (?,?,?) RETURNING id");
                  PreparedStatement stat2 = conn.prepareStatement(
-                         "INSERT INTO \"Access\" (event_id, user_id, access) VALUES (?,?,?)")) {
+                         "INSERT INTO \"Access\" (user_id, event_id, access) VALUES (?,?,?)")) {
 
                 conn.setAutoCommit(false);
 
@@ -69,24 +69,33 @@ public class EventsDaoImpl implements EventsDao {
                         event.setId(rs.getInt("id"));
                     }
                 }
-                System.out.println("");
 
-                stat2.setInt(1, event.getId());
-                stat2.setInt(2, event.getOwner().getId());
+                stat2.setInt(1, event.getOwner().getId());
+                stat2.setInt(2, event.getId());
                 stat2.setInt(3, Access.EDIT);
-                int num = stat2.executeUpdate();
+                stat2.addBatch();
 
-                res = (num>0);
+                if (event.getSharedUsers()!=null) {
+                    for (User user : event.getSharedUsers()) {
+                        stat2.setInt(1, user.getId());
+                        stat2.setInt(2, event.getId());
+                        stat2.setInt(3, Access.READ);
+                        stat2.addBatch();
+                    }
+                    stat2.executeBatch();
+                }
+
                 conn.commit();
             } catch (SQLException e) {
                 System.err.println("Transaction is being rolled back");
                 conn.rollback();
                 e.printStackTrace();
+                return false;
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return res;
+        return true;
     }
 
     @Override
@@ -114,6 +123,53 @@ public class EventsDaoImpl implements EventsDao {
             e.printStackTrace();
         }
         return res;
+    }
+
+    @Override
+    public boolean updateEvent(int id, Event event) {
+        if (id!=event.getId())
+            return false;
+        try (Connection conn = DbUtil.getConnection()) {
+            try (PreparedStatement updateStat = conn.prepareStatement(
+                    "UPDATE \"Events\" SET title=?, description=?, date=? WHERE id=?");
+                 PreparedStatement deleteStat = conn.prepareStatement(
+                         "DELETE FROM \"Access\" WHERE event_id=? AND access=?");
+                 PreparedStatement insertStat = conn.prepareStatement(
+                         "INSERT INTO \"Access\" (user_id, event_id, access) VALUES (?,?,?)")) {
+
+                conn.setAutoCommit(false);
+
+                updateStat.setString(1, event.getTitle());
+                updateStat.setString(2, event.getDescription());
+                updateStat.setTimestamp(3, new Timestamp(event.getDate().getTime()));
+                updateStat.setInt(4, event.getId());
+                updateStat.executeUpdate();
+
+                deleteStat.setInt(1, event.getId());
+                deleteStat.setInt(2, Access.READ);
+                deleteStat.executeUpdate();
+
+                if (event.getSharedUsers()!=null) {
+                    for (User user: event.getSharedUsers()) {
+                        insertStat.setInt(1, user.getId());
+                        insertStat.setInt(2, event.getId());
+                        insertStat.setInt(3, Access.READ);
+                        insertStat.addBatch();
+                    }
+                    insertStat.executeBatch();
+                }
+
+                conn.commit();
+            } catch (SQLException e) {
+                System.err.println("Transaction is being rolled back");
+                conn.rollback();
+                e.printStackTrace();
+                return false;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     @Override

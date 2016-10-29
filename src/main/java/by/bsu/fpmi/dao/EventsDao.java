@@ -12,6 +12,8 @@ public interface EventsDao {
 
     public boolean deleteEventById(int id);
 
+    public boolean updateEvent(int id, Event event);
+
     public List<Event> getOwnersEvents(int ownerId);
 
     public List<Event> getSharedEvents(int userId);
