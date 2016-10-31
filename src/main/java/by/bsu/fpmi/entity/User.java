@@ -1,4 +1,4 @@
-package by.bsu.fpmi.entitty;
+package by.bsu.fpmi.entity;
 
 import java.util.List;
 
@@ -10,6 +10,16 @@ public class User {
     private String password;
     private List<Event> myEvents;
     private List<Event> readingEvents;
+
+    private boolean selected;
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
 
     public User() {
     }

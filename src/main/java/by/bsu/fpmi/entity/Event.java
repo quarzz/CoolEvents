@@ -1,4 +1,4 @@
-package by.bsu.fpmi.entitty;
+package by.bsu.fpmi.entity;
 
 import java.util.Date;
 import java.util.List;

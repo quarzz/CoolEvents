@@ -1,6 +1,6 @@
 package by.bsu.fpmi.dao;
 
-import by.bsu.fpmi.entitty.Event;
+import by.bsu.fpmi.entity.Event;
 
 import java.util.List;
 

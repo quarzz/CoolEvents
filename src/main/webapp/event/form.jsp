@@ -1,4 +1,15 @@
-<form action="${pageContext.request.contextPath}/event/new" method="post">
+<%@ page import="by.bsu.fpmi.entity.User" %>
+<%@ page import="java.util.List" %>
+<%@ page import="by.bsu.fpmi.entity.Event" %>
+<c:choose>
+    <c:when test="${requestScope.action == 'new'}">
+        <c:set var="actionUrl" value="/event/new"/>
+    </c:when>
+    <c:when test="${requestScope.action == 'edit'}">
+        <c:set var="actionUrl" value="/event/?id=${requestScope.event.id}"/>
+    </c:when>
+</c:choose>
+<form action="${actionUrl}" method="post">
     <p>
         <label for="title">Title:</label>
         <br>
@@ -13,6 +24,11 @@
         <label for="date">Date:</label>
         <br>
         <input type="date" id="date" name="date" value="${requestScope.event.date}"/>
+    </p>
+    <p>
+        <c:forEach items="${requestScope.allUsers}" var="user">
+            <input type="checkbox" name="allUsers" ${user.selected? 'checked' : ''} value="${user.id}">${user.login}<br>
+        </c:forEach>
     </p>
     <p>
         <input type="submit">

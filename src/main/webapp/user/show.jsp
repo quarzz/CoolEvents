@@ -39,8 +39,6 @@
                 <br>
                 <a href="/user/?id=${event.owner.id}">${event.owner.login}</a>
                 <br>
-                <a class="btn btn-warning" href="/event/?id=${event.id}&action=edit">Edit</a>
-                <a class="btn btn-danger" href="/event/?id=${event.id}&action=delete">delete</a>
             </div>
         </div>
     </c:forEach>

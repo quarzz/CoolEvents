@@ -1,8 +1,8 @@
 package by.bsu.fpmi.dao;
 
-import by.bsu.fpmi.entitty.Access;
-import by.bsu.fpmi.entitty.Event;
-import by.bsu.fpmi.entitty.User;
+import by.bsu.fpmi.entity.Access;
+import by.bsu.fpmi.entity.Event;
+import by.bsu.fpmi.entity.User;
 import by.bsu.fpmi.util.DbUtil;
 
 import java.sql.*;
@@ -82,8 +82,9 @@ public class EventsDaoImpl implements EventsDao {
                         stat2.setInt(3, Access.READ);
                         stat2.addBatch();
                     }
-                    stat2.executeBatch();
                 }
+
+                stat2.executeBatch();
 
                 conn.commit();
             } catch (SQLException e) {

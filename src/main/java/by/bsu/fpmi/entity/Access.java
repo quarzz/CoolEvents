@@ -1,4 +1,4 @@
-package by.bsu.fpmi.entitty;
+package by.bsu.fpmi.entity;
 
 public class Access {
     public static final int NONE = 0;

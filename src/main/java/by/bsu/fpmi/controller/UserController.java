@@ -3,10 +3,10 @@ package by.bsu.fpmi.controller;
 import by.bsu.fpmi.dao.EventsDao;
 import by.bsu.fpmi.dao.EventsDaoImpl;
 import by.bsu.fpmi.dao.UserDao;
-import by.bsu.fpmi.entitty.Event;
+import by.bsu.fpmi.entity.Event;
 import by.bsu.fpmi.util.Constants;
 import by.bsu.fpmi.dao.UserDaoImpl;
-import by.bsu.fpmi.entitty.User;
+import by.bsu.fpmi.entity.User;
 import by.bsu.fpmi.util.Util;
 
 import javax.servlet.ServletException;
@@ -108,7 +108,10 @@ public class UserController extends HttpServlet {
         }
 
         if (userId == currentUserId) {
-            user.setMyEvents(eventsDao.getOwnersEvents(userId));
+            user.setMyEvents(eventsDao.getOwnersEvents(userId).stream().map(event -> {
+                event.setOwner(user);
+                return event;
+            }).collect(Collectors.toList()));
             user.setReadingEvents(eventsDao.getSharedEvents(userId));
         } else {
             List<Event> sharedWithCurrentUser = eventsDao.getSharedEvents(userId);

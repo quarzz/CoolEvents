@@ -3,10 +3,11 @@ package by.bsu.fpmi.controller;
 import by.bsu.fpmi.dao.EventsDao;
 import by.bsu.fpmi.dao.UserDao;
 import by.bsu.fpmi.dao.UserDaoImpl;
-import by.bsu.fpmi.entitty.Access;
+import by.bsu.fpmi.entity.Access;
+import by.bsu.fpmi.entity.User;
 import by.bsu.fpmi.util.Constants;
 import by.bsu.fpmi.dao.EventsDaoImpl;
-import by.bsu.fpmi.entitty.Event;
+import by.bsu.fpmi.entity.Event;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -17,6 +18,8 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 @WebServlet(urlPatterns = {Constants.NEW_EVENT_URI, Constants.EVENT_URI})
 public class EventController extends HttpServlet {
@@ -82,7 +85,20 @@ public class EventController extends HttpServlet {
 
         Event event = new Event();
 
+        List<User> allUsers = userDao.getUsers();
+        allUsers.removeIf(user -> user.getId() == AccessController.getCurrentUserID(req));
+        List<User> selectedUsers = new ArrayList<>();
+
+        event.setSharedUsers(selectedUsers);
+
+        for (User user : allUsers) {
+            if (selectedUsers.contains(user))
+                user.setSelected(true);
+            else user.setSelected(false);
+        }
+
         req.setAttribute("event", event);
+        req.setAttribute("allUsers", allUsers);
         req.setAttribute("action", "new");
         req.getRequestDispatcher("new.jsp").forward(req, resp);
     }
@@ -98,9 +114,21 @@ public class EventController extends HttpServlet {
             event.setDate(dateFormat.parse(req.getParameter("date")));
         } catch (ParseException e) {
             //HANDLE SOMEHOW IN FUTURE RELEASES
+            e.printStackTrace();
         }
 
         event.setOwner(userDao.getUserById(AccessController.getCurrentUserID(req)));
+
+        List<User> sharedUsers = new ArrayList<>();
+
+        String[] allUsersIdsString = req.getParameterValues("allUsers");
+        for (String userStringId : allUsersIdsString) {
+            int id = Integer.parseInt(userStringId);
+            User user = userDao.getUserById(id);
+            sharedUsers.add(user);
+        }
+
+        event.setSharedUsers(sharedUsers);
 
         HttpSession session = req.getSession();
         String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
@@ -108,6 +136,7 @@ public class EventController extends HttpServlet {
 
         if (eventsDao.addEvent(event)) {
             resp.sendRedirect(prevEventsListUrl);
+            System.out.println("CREATED");
         } else {
             resp.sendRedirect("/event/new");
         }
@@ -133,9 +162,15 @@ public class EventController extends HttpServlet {
 
         int access = eventsDao.getAccess(userId, eventId);
 
-        if (access == Access.NONE) {
-            resp.sendError(403);
-            return;
+        switch (access) {
+            case Access.NONE:
+                resp.sendError(403);
+                return;
+            case Access.READ:
+                req.setAttribute("currentUserEvent", false);
+                break;
+            case Access.EDIT:
+                req.setAttribute("currentUserEvent", true);
         }
 
         Event event = eventsDao.getEventById(eventId);
@@ -148,8 +183,36 @@ public class EventController extends HttpServlet {
     private void edit(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         int id = Integer.parseInt(req.getParameter("id"));
 
+        switch (eventsDao.getAccess(AccessController.getCurrentUserID(req), id)) {
+            case Access.EDIT:
+                break;
+            case Access.READ:
+            case Access.NONE:
+                resp.sendError(403);
+                return;
+        }
+
         Event event = eventsDao.getEventById(id);
 
+        List<User> allUsers = userDao.getUsers();
+        allUsers.removeIf(user -> user.getId() == AccessController.getCurrentUserID(req));
+        List<User> selectedUsers = new ArrayList<>();
+
+        for (User user : allUsers) {
+            int access = eventsDao.getAccess(user.getId(), event.getId());
+            if (access == Access.READ)
+                selectedUsers.add(user);
+        }
+
+        event.setSharedUsers(selectedUsers);
+
+        for (User user : allUsers) {
+            if (selectedUsers.contains(user))
+                user.setSelected(true);
+            else user.setSelected(false);
+        }
+
+        req.setAttribute("allUsers", allUsers);
         req.setAttribute("event", event);
         req.setAttribute("action", "edit");
 
@@ -159,7 +222,9 @@ public class EventController extends HttpServlet {
     private void update(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         int userId = AccessController.getCurrentUserID(req);
 
-        Event event = new Event();
+        int id = Integer.parseInt(req.getParameter("id"));
+
+        Event event = eventsDao.getEventById(id);
 
         event.setTitle(req.getParameter("title"));
         event.setDescription(req.getParameter("description"));
@@ -168,23 +233,43 @@ public class EventController extends HttpServlet {
         } catch (ParseException e) {
             event.setDate(null);
         }
-        event.setOwner(userDao.getUserById(userId));
+
+        List<User> sharedUsers = new ArrayList<>();
+
+        String[] allUsersIdsString = req.getParameterValues("allUsers");
+        for (String userStringId : allUsersIdsString) {
+            int currentUserId = Integer.parseInt(userStringId);
+            User user = userDao.getUserById(currentUserId);
+            sharedUsers.add(user);
+        }
+
+        event.setSharedUsers(sharedUsers);
 
         HttpSession session = req.getSession();
         String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
 
-        if (eventsDao.addEvent(event)) {
+        if (eventsDao.updateEvent(id, event)) {
             resp.sendRedirect(prevEventsListUrl);
         } else {
-            resp.sendRedirect(prevEventsListUrl);
+            resp.sendRedirect(req.getRequestURI() + (req.getQueryString() == null ?'?' +req.getQueryString() : ""));
         }
     }
 
     private void delete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         int id = Integer.parseInt(req.getParameter("id"));
 
+        switch (eventsDao.getAccess(AccessController.getCurrentUserID(req), id)) {
+            case Access.EDIT:
+                break;
+            case Access.READ:
+            case Access.NONE:
+                resp.sendError(403, "ONLY CREATOR HAVE ACCESS TO DELETE EVENT");
+                return;
+        }
+
         HttpSession session = req.getSession();
-        String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
+        String prevEventsListUrl =
+                session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
 
         // some clean code goes here xD
         if (eventsDao.deleteEventById(id)) {

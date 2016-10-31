@@ -1,6 +1,6 @@
 package by.bsu.fpmi.dao;
 
-import by.bsu.fpmi.entitty.User;
+import by.bsu.fpmi.entity.User;
 
 import java.util.List;
 
