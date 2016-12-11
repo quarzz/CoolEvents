@@ -16,5 +16,5 @@
 </head>
 <body>
 <%--nav goes here--%>
-
+    <a href="/logout">log out</a>
     <div class="container">

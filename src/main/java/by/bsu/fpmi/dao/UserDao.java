@@ -13,4 +13,6 @@ public interface UserDao {
     public boolean addUser(User user);
 
     public List<User> getUsers();
+
+    public int getUserIdByToken(String token, int stage);
 }

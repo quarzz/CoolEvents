@@ -6,4 +6,6 @@ public class Constants {
 
     public static final String NEW_EVENT_URI = "/event/new";
     public static final String EVENT_URI = "/event/";
+
+    public static final int NO_USER_ID = -1;
 }

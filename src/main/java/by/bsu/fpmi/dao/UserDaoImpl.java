@@ -1,6 +1,7 @@
 package by.bsu.fpmi.dao;
 
 import by.bsu.fpmi.entity.User;
+import by.bsu.fpmi.util.Constants;
 import by.bsu.fpmi.util.DbUtil;
 
 import java.sql.*;
@@ -93,5 +94,27 @@ public class UserDaoImpl implements UserDao {
             e.printStackTrace();
         }
         return users;
+    }
+
+    @Override
+    public int getUserIdByToken(String token, int stage) {
+        try (
+            Connection conn = DbUtil.getConnection();
+            PreparedStatement stat =
+                    conn.prepareStatement("SELECT user_id FROM \"tokens\" WHERE token LIKE ? AND stage = ? LIMIT 1")
+        ) {
+            stat.setString(1, token);
+            stat.setInt(2, stage);
+
+            try (ResultSet rs = stat.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("user_id");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return Constants.NO_USER_ID;
     }
 }
