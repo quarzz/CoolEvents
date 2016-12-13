@@ -1,0 +1,1 @@
+INSERT INTO public.tokens (id, token, user_id, timestamp, stage) VALUES (25, 'rqz5qPmEz9kQ1R6Fgr958rqjJLdV3egYNQiiKsow2xVj+myxy5ORrFz5Zm/4vHFn', 2, '2016-12-14 01:09:57.515470', 2);
