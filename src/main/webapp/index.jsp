@@ -1,5 +1,2 @@
-<html>
-<body>
-<h2>Hello World!</h2>
-</body>
-</html>
+<%@include file="common/header.jsp"%>
+<%@include file="common/footer.jsp"%>
