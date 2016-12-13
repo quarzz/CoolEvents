@@ -23,7 +23,7 @@ public class AccessController {
 
         if (tokenOptional.isPresent()) {
             String token = tokenOptional.get().getValue();
-            return userDao.getUserIdByToken(token, 1);
+            return userDao.getUserIdByToken(token, 2);
         }
 
         return Constants.NO_USER_ID;
