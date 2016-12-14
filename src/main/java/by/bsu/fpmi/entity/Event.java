@@ -11,6 +11,8 @@ public class Event {
     private User owner;
     private List<User> sharedUsers;
 
+    private int access = Access.NONE;
+
     public Event() {
     }
 
@@ -62,6 +64,13 @@ public class Event {
         this.sharedUsers = sharedUsers;
     }
 
+    public int getAccess() {
+        return access;
+    }
+
+    public void setAccess(int access) {
+        this.access = access;
+    }
 
     @Override
     public String toString() {

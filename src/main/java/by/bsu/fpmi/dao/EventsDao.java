@@ -19,4 +19,8 @@ public interface EventsDao {
     public List<Event> getSharedEvents(int userId);
 
     public int getAccess(int userId, int eventId);
+
+    public List<Event> getAllEvents(int user_id);
+
+    public int getOwnerId(int eventId);
 }

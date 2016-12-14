@@ -90,6 +90,11 @@ public class UserController extends HttpServlet {
         int userId;
         int currentUserId = AccessController.getCurrentUserID(req);
 
+        if (currentUserId == Constants.NO_USER_ID) {
+            resp.sendError(403);
+            return;
+        }
+
         if (rawId == null) {
             userId = currentUserId;
         } else {
@@ -108,11 +113,12 @@ public class UserController extends HttpServlet {
         }
 
         if (userId == currentUserId) {
-            user.setMyEvents(eventsDao.getOwnersEvents(userId).stream().map(event -> {
-                event.setOwner(user);
-                return event;
-            }).collect(Collectors.toList()));
-            user.setReadingEvents(eventsDao.getSharedEvents(userId));
+//            user.setMyEvents(eventsDao.getOwnersEvents(userId).stream().map(event -> {
+//                event.setOwner(user);
+//                return event;
+//            }).collect(Collectors.toList()));
+//            user.setReadingEvents(eventsDao.getSharedEvents(userId));
+            user.setEvents(eventsDao.getAllEvents(userId));
         } else {
             List<Event> sharedWithCurrentUser = eventsDao.getSharedEvents(userId);
 

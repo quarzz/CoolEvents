@@ -11,6 +11,10 @@ public class User {
     private List<Event> myEvents;
     private List<Event> readingEvents;
 
+    private List<Event> events;
+
+
+
     private boolean selected;
 
     public boolean isSelected() {
@@ -78,6 +82,14 @@ public class User {
 
     public void setReadingEvents(List<Event> readingEvents) {
         this.readingEvents = readingEvents;
+    }
+
+    public List<Event> getEvents() {
+        return events;
+    }
+
+    public void setEvents(List<Event> events) {
+        this.events = events;
     }
 
     @Override

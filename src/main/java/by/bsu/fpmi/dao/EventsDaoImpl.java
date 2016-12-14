@@ -247,4 +247,55 @@ public class EventsDaoImpl implements EventsDao {
         }
         return access;
     }
+
+    @Override
+    public List<Event> getAllEvents(int user_id) {
+        List<Event> events = new ArrayList<>();
+        try (
+            Connection conn = DbUtil.getConnection();
+            PreparedStatement stat = conn.prepareStatement(
+                "SELECT e.*, a.access FROM \"Events\" e JOIN \"Access\" a ON e.id = a.event_id WHERE a.user_id = ? AND a.access in (1, 2) ORDER BY e.date"
+            )
+        ) {
+            stat.setInt(1, user_id);
+
+            try (ResultSet rs = stat.executeQuery()) {
+                while (rs.next()) {
+                    Event event = new Event();
+                    event.setId(rs.getInt("id"));
+                    event.setTitle(rs.getString("title"));
+                    event.setDescription(rs.getString("description"));
+                    event.setDate(rs.getTimestamp("date"));
+                    event.setAccess(rs.getInt("access"));
+
+                    event.setOwner(new UserDaoImpl().getUserById(getOwnerId(event.getId())));
+
+                    events.add(event);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return events;
+    }
+
+    @Override
+    public int getOwnerId(int eventId) {
+        try (
+            Connection conn = DbUtil.getConnection();
+            PreparedStatement stat = conn.prepareStatement("SELECT a.user_id FROM \"Access\" a WHERE a.event_id = ? AND a.access = 2")
+        ) {
+            stat.setInt(1, eventId);
+            try (ResultSet rs = stat.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("user_id");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return -1;
+    }
 }
