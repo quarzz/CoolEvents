@@ -50,8 +50,8 @@ public class Util {
     }
 
     public static void sendMail(String recipient, String text) {
-        final String username = "quarzzap@gmail.com";
-        final String password = "googleGr@fgoogle";
+        final String username = "YOUR GMAIL EMAIL HERE";
+        final String password = "ITS PASSWORD HERE";
 
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
