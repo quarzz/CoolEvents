@@ -9,5 +9,7 @@ public interface AuthDao {
     void setPin(String token, int pin);
     int getPin(String token);
 
-    public int getUserIdByToken(String token, int stage);
+    int getUserIdByToken(String token, int stage);
+    int getStage(String token);
+    void setStage(String token, int stage);
 }

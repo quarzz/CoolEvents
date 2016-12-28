@@ -2,7 +2,9 @@ package by.bsu.fpmi.dao;
 
 import by.bsu.fpmi.util.Constants;
 import by.bsu.fpmi.util.DbUtil;
+import org.jasypt.util.password.StrongPasswordEncryptor;
 
+import javax.swing.plaf.nimbus.State;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,14 +14,16 @@ public class AuthDaoImpl implements AuthDao {
     @Override
     public int authenticate(String login, String password) {
         try (
-                Connection connection = DbUtil.getConnection();
-                PreparedStatement statement = connection.prepareStatement("SELECT id FROM \"Users\" WHERE login LIKE ? AND password LIKE ? LIMIT 1")
-                ) {
-            statement.setString(1, login);
-            statement.setString(2, password);
+            Connection connection = DbUtil.getConnection();
+            PreparedStatement statement = connection.prepareStatement("SELECT id, password FROM Users WHERE AES_DECRYPT(login, ?) LIKE ? LIMIT 1")
+        ) {
+            statement.setString(1, DbUtil.getDbKey());
+            statement.setString(2, login);
             try (ResultSet rs = statement.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("id");
+                    StrongPasswordEncryptor encryptor = new StrongPasswordEncryptor();
+                    if (encryptor.checkPassword(password, rs.getString("password")))
+                        return rs.getInt("id");
                 }
             }
         } catch (SQLException e) {
@@ -54,7 +58,7 @@ public class AuthDaoImpl implements AuthDao {
     public void addToken(int userID, String token, int stage) {
         try (
                 Connection connection = DbUtil.getConnection();
-                PreparedStatement statement = connection.prepareStatement("INSERT INTO \"tokens\" (user_id, token, stage) VALUES(?, ?, ?)")
+                PreparedStatement statement = connection.prepareStatement("INSERT INTO tokens (user_id, token, stage) VALUES(?, ?, ?)")
                 ) {
             statement.setInt(1, userID);
             statement.setString(2, token);
@@ -71,7 +75,7 @@ public class AuthDaoImpl implements AuthDao {
     public void deleteToken(String token) {
         try (
                 Connection connection = DbUtil.getConnection();
-                PreparedStatement statement = connection.prepareStatement("DELETE FROM \"tokens\" WHERE token = ?")
+                PreparedStatement statement = connection.prepareStatement("DELETE FROM tokens WHERE token = ?")
                 ) {
             statement.setString(1, token);
 
@@ -108,10 +112,13 @@ public class AuthDaoImpl implements AuthDao {
     public void setPin(String token, int pin) {
         try (
             Connection connection = DbUtil.getConnection();
-            PreparedStatement statement = connection.prepareStatement("INSERT INTO pins (token, pin) VALUES(?, ?)")
+            PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO pins (token, pin) VALUES(?, ?) " +
+                        "ON DUPLICATE KEY UPDATE pin = ?")
         ) {
             statement.setString(1, token);
             statement.setInt(2, pin);
+            statement.setInt(3, pin);
 
             int count = statement.executeUpdate();
             if (count > 0)
@@ -146,7 +153,7 @@ public class AuthDaoImpl implements AuthDao {
         try (
                 Connection conn = DbUtil.getConnection();
                 PreparedStatement stat =
-                        conn.prepareStatement("SELECT user_id FROM \"tokens\" WHERE token LIKE ? AND stage = ? LIMIT 1")
+                        conn.prepareStatement("SELECT user_id FROM tokens WHERE token LIKE ? AND stage = ? LIMIT 1")
         ) {
             stat.setString(1, token);
             stat.setInt(2, stage);
@@ -161,5 +168,43 @@ public class AuthDaoImpl implements AuthDao {
         }
 
         return Constants.NO_USER_ID;
+    }
+
+    @Override
+    public int getStage(String token) {
+        try (
+                Connection connection = DbUtil.getConnection();
+                PreparedStatement statement = connection.prepareStatement(
+                    "SELECT stage from tokens where token like ? limit 1"
+                )
+        ) {
+            statement.setString(1, token);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("stage");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return  -1;
+    }
+
+    @Override
+    public void setStage(String token, int stage) {
+        try (
+            Connection connection = DbUtil.getConnection();
+            PreparedStatement statement = connection.prepareStatement(
+                "UPDATE tokens SET stage = ? WHERE token = ?"
+            );
+        ) {
+            statement.setString(2, token);
+            statement.setInt(1, stage);
+
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }

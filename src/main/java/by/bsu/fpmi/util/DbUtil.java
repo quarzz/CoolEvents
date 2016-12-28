@@ -9,13 +9,17 @@ public class DbUtil {
     public static Connection getConnection() {
         Connection connection = null;
         try {
-            Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/coolevents", "postgres", "imivrsagzp");
+            Class.forName("com.mysql.jdbc.Driver");
+            connection = DriverManager.getConnection("jdbc:mysql://localhost/coolevents", "root", "imivrsagzp");
         } catch (SQLException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
         return connection;
+    }
+
+    public static String getDbKey() {
+        return "db_key";
     }
 }

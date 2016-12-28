@@ -24,10 +24,10 @@ public class EventsDaoImpl implements EventsDao {
         Event event = null;
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat = conn.prepareStatement(
-                    "SELECT \"Events\".*, \"Users\".* FROM \"Events\"" +
-                            "INNER JOIN \"Access\" ON \"Events\".id=\"Access\".event_id " +
-                            "INNER JOIN \"Users\" ON \"Access\".user_id=\"Users\".id " +
-                            "WHERE \"Events\".id=? AND \"Access\".access=? ORDER BY \"Events\".date")) {
+                    "SELECT Events.*, Users.* FROM Events " +
+                            "INNER JOIN Access ON Events.id=Access.event_id " +
+                            "INNER JOIN Users ON Access.user_id=Users.id " +
+                            "WHERE Events.id=? AND Access.access=? ORDER BY Events.date")) {
                 stat.setInt(1, id);
                 stat.setInt(2, Access.EDIT);
 
@@ -54,9 +54,9 @@ public class EventsDaoImpl implements EventsDao {
             return false;
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat1 = conn.prepareStatement(
-                    "INSERT INTO \"Events\" (title, description, date) VALUES (?,?,?) RETURNING id");
+                    "INSERT INTO Events (title, description, date) VALUES (?,?,?)", Statement.RETURN_GENERATED_KEYS);
                  PreparedStatement stat2 = conn.prepareStatement(
-                         "INSERT INTO \"Access\" (user_id, event_id, access) VALUES (?,?,?)")) {
+                         "INSERT INTO Access (user_id, event_id, access) VALUES (?,?,?)")) {
 
                 conn.setAutoCommit(false);
 
@@ -64,10 +64,12 @@ public class EventsDaoImpl implements EventsDao {
                 stat1.setString(2, event.getDescription());
                 stat1.setTimestamp(3, new Timestamp(event.getDate().getTime()));
 
-                try (ResultSet rs = stat1.executeQuery()) {
-                    while (rs.next()) {
-                        event.setId(rs.getInt("id"));
-                    }
+                stat1.executeUpdate();
+
+                ResultSet rs = stat1.getGeneratedKeys();
+
+                if (rs.next()) {
+                    event.setId(rs.getInt(1));
                 }
 
                 stat2.setInt(1, event.getOwner().getId());
@@ -103,8 +105,8 @@ public class EventsDaoImpl implements EventsDao {
     public boolean deleteEventById(int id) {
         boolean res = false;
         try (Connection conn = DbUtil.getConnection()) {
-            try (PreparedStatement stat1 = conn.prepareStatement("DELETE FROM \"Access\" WHERE event_id=?");
-                 PreparedStatement stat2 = conn.prepareStatement("DELETE FROM \"Events\" WHERE id=?")) {
+            try (PreparedStatement stat1 = conn.prepareStatement("DELETE FROM Access WHERE event_id=?");
+                 PreparedStatement stat2 = conn.prepareStatement("DELETE FROM Events WHERE id=?")) {
 
                 conn.setAutoCommit(false);
 
@@ -132,11 +134,11 @@ public class EventsDaoImpl implements EventsDao {
             return false;
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement updateStat = conn.prepareStatement(
-                    "UPDATE \"Events\" SET title=?, description=?, date=? WHERE id=?");
+                    "UPDATE Events SET title=?, description=?, date=? WHERE id=?");
                  PreparedStatement deleteStat = conn.prepareStatement(
-                         "DELETE FROM \"Access\" WHERE event_id=? AND access=?");
+                         "DELETE FROM Access WHERE event_id=? AND access=?");
                  PreparedStatement insertStat = conn.prepareStatement(
-                         "INSERT INTO \"Access\" (user_id, event_id, access) VALUES (?,?,?)")) {
+                         "INSERT INTO Access (user_id, event_id, access) VALUES (?,?,?)")) {
 
                 conn.setAutoCommit(false);
 
@@ -178,8 +180,8 @@ public class EventsDaoImpl implements EventsDao {
         List<Event> events = new ArrayList<>();
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat = conn.prepareStatement(
-                    "SELECT \"Events\".* FROM \"Events\" INNER JOIN \"Access\" ON \"Events\".id=\"Access\".event_id " +
-                            "WHERE \"Access\".access=? AND \"Access\".user_id=? ORDER BY \"Events\".date")) {
+                    "SELECT Events.* FROM Events INNER JOIN Access ON Events.id=Access.event_id " +
+                            "WHERE Access.access=? AND Access.user_id=? ORDER BY Events.date")) {
                 stat.setInt(1, Access.EDIT);
                 stat.setInt(2, ownerId);
                 try (ResultSet rs = stat.executeQuery()) {
@@ -199,12 +201,12 @@ public class EventsDaoImpl implements EventsDao {
         List<Event> events = new ArrayList<>();
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat = conn.prepareStatement("WITH shared_events AS (" +
-                            "SELECT \"Events\".* FROM \"Events\" INNER JOIN \"Access\" ON \"Events\".id=\"Access\".event_id " +
-                            "WHERE \"Access\".access=1 AND \"Access\".user_id=?)" +
-                            "SELECT shared_events.*, \"Users\".* from shared_events " +
-                            "INNER JOIN \"Access\" ON shared_events.id=\"Access\".event_id " +
-                            "INNER JOIN \"Users\" ON \"Access\".user_id=\"Users\".id " +
-                            "WHERE \"Access\".access=2 ORDER BY shared_events.date")) {
+                            "SELECT Events.* FROM Events INNER JOIN Access ON Events.id=Access.event_id " +
+                            "WHERE Access.access=1 AND Access.user_id=?)" +
+                            "SELECT shared_events.*, Users.* from shared_events " +
+                            "INNER JOIN Access ON shared_events.id=Access.event_id " +
+                            "INNER JOIN Users ON Access.user_id=Users.id " +
+                            "WHERE Access.access=2 ORDER BY shared_events.date")) {
                 stat.setInt(1, userId);
 
                 try (ResultSet rs = stat.executeQuery()) {
@@ -232,7 +234,7 @@ public class EventsDaoImpl implements EventsDao {
     public int getAccess(int userId, int eventId) {
         int access = Access.NONE;
         try (Connection conn = DbUtil.getConnection()) {
-            try (PreparedStatement stat = conn.prepareStatement("SELECT access FROM \"Access\" WHERE user_id=? AND event_id=?")) {
+            try (PreparedStatement stat = conn.prepareStatement("SELECT access FROM Access WHERE user_id=? AND event_id=?")) {
                 stat.setInt(1, userId);
                 stat.setInt(2, eventId);
 
@@ -254,7 +256,7 @@ public class EventsDaoImpl implements EventsDao {
         try (
             Connection conn = DbUtil.getConnection();
             PreparedStatement stat = conn.prepareStatement(
-                "SELECT e.*, a.access FROM \"Events\" e JOIN \"Access\" a ON e.id = a.event_id WHERE a.user_id = ? AND a.access in (1, 2) ORDER BY e.date"
+                "SELECT e.*, a.access FROM Events e JOIN Access a ON e.id = a.event_id WHERE a.user_id = ? AND a.access in (1, 2) ORDER BY e.date"
             )
         ) {
             stat.setInt(1, user_id);
@@ -284,7 +286,7 @@ public class EventsDaoImpl implements EventsDao {
     public int getOwnerId(int eventId) {
         try (
             Connection conn = DbUtil.getConnection();
-            PreparedStatement stat = conn.prepareStatement("SELECT a.user_id FROM \"Access\" a WHERE a.event_id = ? AND a.access = 2")
+            PreparedStatement stat = conn.prepareStatement("SELECT a.user_id FROM Access a WHERE a.event_id = ? AND a.access = 2")
         ) {
             stat.setInt(1, eventId);
             try (ResultSet rs = stat.executeQuery()) {

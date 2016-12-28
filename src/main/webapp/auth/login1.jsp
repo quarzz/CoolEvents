@@ -12,6 +12,9 @@
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" class="form-control">
             </div>
+            <div class="checkbox">
+                <label><input type="checkbox" name="remember" value="true">Remember me</label>
+            </div>
             <div class="form-group">
                 <input type="hidden" name="stage" value="1">
                 <input type="submit" value="Log in" class="btn btn-default">

@@ -1,8 +1,8 @@
-<%@include file="../common/header.jsp"%>
+<%@include file="common/header.jsp"%>
 
 <div class="row">
     <div class="col-md-offset-3 col-md-6">
-        <form action="/login" method="post">
+        <form action="${sessionScope.uri}" method="post">
             <p>
                 We have sent 6-digits pin code on your email. Please, provide it below.
             </p>
@@ -21,4 +21,4 @@
     </div>
 </div>
 
-<%@include file="../common/footer.jsp"%>
+<%@include file="common/footer.jsp"%>

@@ -1,21 +1,20 @@
 package by.bsu.fpmi.controller;
 
-import by.bsu.fpmi.dao.EventsDao;
-import by.bsu.fpmi.dao.UserDao;
-import by.bsu.fpmi.dao.UserDaoImpl;
+import by.bsu.fpmi.dao.*;
 import by.bsu.fpmi.entity.Access;
 import by.bsu.fpmi.entity.User;
 import by.bsu.fpmi.util.Constants;
-import by.bsu.fpmi.dao.EventsDaoImpl;
 import by.bsu.fpmi.entity.Event;
+import by.bsu.fpmi.util.DbUtil;
+import by.bsu.fpmi.util.Util;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.*;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -69,15 +68,56 @@ public class EventController extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String uri = req.getRequestURI();
 
-        switch (uri) {
-            case Constants.NEW_EVENT_URI:
-                create(req, resp);
+        Cookie tokenCookie = Util.getCookieByName(req, "token");
+        String token = tokenCookie == null? "" : tokenCookie.getValue();
+
+        int stage = new AuthDaoImpl().getStage(token);
+
+        if (stage == -1) {
+            resp.sendError(403);
+            return;
+        } else if (stage == 2) {
+            Event event = eventFromReq(req);
+            req.getSession().setAttribute("event", event);
+            req.getSession().setAttribute("uri", uri);
+
+            new AuthDaoImpl().setStage(token, 3);
+            AuthController.generatePin(req);
+
+            req.getRequestDispatcher("/approve.jsp").forward(req, resp);
+        } else if (stage == 3) {
+            int pin = Integer.parseInt(req.getParameter("pin"));
+
+            int userId = new AuthDaoImpl().authenticate2(token, pin);
+
+            if (userId == Constants.NO_USER_ID) {
+                req.getRequestDispatcher("/approve.jsp").forward(req, resp);
                 return;
-            case Constants.EVENT_URI:
-                update(req, resp);
-                return;
-            default:
-                resp.sendError(404);
+            }
+
+
+            try (
+                Connection connection = DbUtil.getConnection();
+                PreparedStatement statement = connection.prepareStatement("delete from pins where token like ?");
+            ) {
+                statement.setString(1, token);
+                statement.executeUpdate();
+            } catch (SQLException e) {
+                System.out.println("littli shit))");
+            }
+
+            new AuthDaoImpl().setStage(token, 2);
+
+            switch (uri) {
+                case Constants.NEW_EVENT_URI:
+                    create(req, resp);
+                    return;
+                case Constants.EVENT_URI:
+                    update(req, resp);
+                    return;
+                default:
+                    resp.sendError(404);
+            }
         }
     }
 
@@ -104,31 +144,7 @@ public class EventController extends HttpServlet {
     }
 
     private void create(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        Event event = new Event();
-
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
-        event.setTitle(req.getParameter("title"));
-        event.setDescription(req.getParameter("description"));
-        try {
-            event.setDate(dateFormat.parse(req.getParameter("date")));
-        } catch (ParseException e) {
-            //HANDLE SOMEHOW IN FUTURE RELEASES
-            e.printStackTrace();
-        }
-
-        event.setOwner(userDao.getUserById(AccessController.getCurrentUserID(req)));
-
-        List<User> sharedUsers = new ArrayList<>();
-
-        String[] allUsersIdsString = req.getParameterValues("allUsers");
-        for (String userStringId : allUsersIdsString) {
-            int id = Integer.parseInt(userStringId);
-            User user = userDao.getUserById(id);
-            sharedUsers.add(user);
-        }
-
-        event.setSharedUsers(sharedUsers);
+        Event event = (Event) req.getSession().getAttribute("event");
 
         HttpSession session = req.getSession();
         String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
@@ -222,33 +238,12 @@ public class EventController extends HttpServlet {
     private void update(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         int userId = AccessController.getCurrentUserID(req);
 
-        int id = Integer.parseInt(req.getParameter("id"));
-
-        Event event = eventsDao.getEventById(id);
-
-        event.setTitle(req.getParameter("title"));
-        event.setDescription(req.getParameter("description"));
-        try {
-            event.setDate(dateFormat.parse(req.getParameter("date")));
-        } catch (ParseException e) {
-            event.setDate(null);
-        }
-
-        List<User> sharedUsers = new ArrayList<>();
-
-        String[] allUsersIdsString = req.getParameterValues("allUsers");
-        for (String userStringId : allUsersIdsString) {
-            int currentUserId = Integer.parseInt(userStringId);
-            User user = userDao.getUserById(currentUserId);
-            sharedUsers.add(user);
-        }
-
-        event.setSharedUsers(sharedUsers);
+        Event event = (Event) req.getSession().getAttribute("event");
 
         HttpSession session = req.getSession();
         String prevEventsListUrl = session.getAttribute("prevEventsListUrl") == null ? "/user" : session.getAttribute("prevEventsListUrl").toString();
 
-        if (eventsDao.updateEvent(id, event)) {
+        if (eventsDao.updateEvent(event.getId(), event)) {
             resp.sendRedirect(prevEventsListUrl);
         } else {
             resp.sendRedirect(req.getRequestURI() + (req.getQueryString() == null ?'?' +req.getQueryString() : ""));
@@ -277,5 +272,41 @@ public class EventController extends HttpServlet {
         } else {
             resp.sendRedirect(prevEventsListUrl);
         }
+    }
+
+    private Event eventFromReq(HttpServletRequest req) {
+        Event event = new Event();
+
+        String rawId = req.getParameter("id");
+
+        if (rawId != null) {
+            event.setId(Integer.parseInt(rawId));
+        }
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+
+        event.setTitle(req.getParameter("title"));
+        event.setDescription(req.getParameter("description"));
+        try {
+            event.setDate(dateFormat.parse(req.getParameter("date")));
+        } catch (ParseException e) {
+            //HANDLE SOMEHOW IN FUTURE RELEASES
+            e.printStackTrace();
+        }
+
+        event.setOwner(userDao.getUserById(AccessController.getCurrentUserID(req)));
+
+        List<User> sharedUsers = new ArrayList<>();
+
+        String[] allUsersIdsString = req.getParameterValues("allUsers");
+        for (String userStringId : allUsersIdsString) {
+            int id = Integer.parseInt(userStringId);
+            User user = userDao.getUserById(id);
+            sharedUsers.add(user);
+        }
+
+        event.setSharedUsers(sharedUsers);
+
+        return event;
     }
 }

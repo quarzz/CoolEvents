@@ -22,8 +22,10 @@ public class UserDaoImpl implements UserDao {
     public User getUserById(int id) {
         User user = null;
         try (Connection conn = DbUtil.getConnection()) {
-            try (PreparedStatement stat = conn.prepareStatement("SELECT * FROM \"Users\" WHERE id=?")) {
-                stat.setInt(1, id);
+            try (PreparedStatement stat = conn.prepareStatement(
+                    "SELECT id, firstName, lastName, AES_DECRYPT(login, ?) as login, password FROM Users WHERE id=?")) {
+                stat.setString(1, DbUtil.getDbKey());
+                stat.setInt(2, id);
 
                 try (ResultSet rs = stat.executeQuery()) {
                     while (rs.next()) {
@@ -41,8 +43,9 @@ public class UserDaoImpl implements UserDao {
     public User getUserByLogin(String login) {
         User user = null;
         try (Connection conn = DbUtil.getConnection()) {
-            try (PreparedStatement stat = conn.prepareStatement("SELECT * FROM \"Users\" WHERE login=?")) {
-                stat.setString(1, login);
+            try (PreparedStatement stat = conn.prepareStatement("SELECT id, firstName, lastName, AES_DECRYPT(login, ?) as login, password FROM Users WHERE login=?")) {
+                stat.setString(1, DbUtil.getDbKey());
+                stat.setString(2, login);
 
                 try (ResultSet rs = stat.executeQuery()) {
                     while (rs.next()) {
@@ -60,11 +63,13 @@ public class UserDaoImpl implements UserDao {
         boolean res = false;
         try (Connection conn = DbUtil.getConnection()) {
             try (PreparedStatement stat = conn.prepareStatement(
-                    "INSERT INTO \"Users\" (login, password, \"firstName\", \"lastName\") VALUES (?,?,?,?) RETURNING id")) {
+                    "INSERT INTO Users (login, password, firstName, lastName) " +
+                            "VALUES (AES_ENCRYPT(?, ?),?,?,?) RETURNING id")) {
                 stat.setString(1, user.getLogin());
-                stat.setString(2, user.getPassword());
-                stat.setString(3, user.getFirstName());
-                stat.setString(4, user.getLastName());
+                stat.setString(2, DbUtil.getDbKey());
+                stat.setString(3, user.getPassword());
+                stat.setString(4, user.getFirstName());
+                stat.setString(5, user.getLastName());
 
                 try (ResultSet rs = stat.executeQuery()) {
                     while (rs.next()) {
@@ -83,7 +88,8 @@ public class UserDaoImpl implements UserDao {
     public List<User> getUsers() {
         List<User> users = new ArrayList<>();
         try (Connection conn = DbUtil.getConnection()) {
-            try (PreparedStatement stat = conn.prepareStatement("SELECT * FROM \"Users\"")) {
+            try (PreparedStatement stat = conn.prepareStatement("SELECT id, firstName, lastName, AES_DECRYPT(login, ?) as login, password FROM Users")) {
+                stat.setString(1, DbUtil.getDbKey());
                 try (ResultSet rs = stat.executeQuery()) {
                     while (rs.next()) {
                         users.add(createUserFromResultSet(rs));
@@ -101,7 +107,7 @@ public class UserDaoImpl implements UserDao {
         try (
             Connection conn = DbUtil.getConnection();
             PreparedStatement stat =
-                    conn.prepareStatement("SELECT user_id FROM \"tokens\" WHERE token LIKE ? AND stage = ? LIMIT 1")
+                    conn.prepareStatement("SELECT user_id FROM tokens WHERE token LIKE ? AND stage = ? LIMIT 1")
         ) {
             stat.setString(1, token);
             stat.setInt(2, stage);
